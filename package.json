@@ -16,6 +16,7 @@
     "notify:fixture": "node scripts/notify.mjs --fixture tests/fixture.json"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^9.4.1",
     "firebase": "^10.14.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
