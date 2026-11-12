@@ -186,6 +186,16 @@ async function send(uid, tokens, n) {
       }
     });
 
+    console.log(`[notify:${prefix}] Resultado FCM: ${r.successCount} exitosos, ${r.failureCount} fallidos`);
+
+    r.responses.forEach((response, index) => {
+      if (!response.success) {
+        console.error(`[notify:${prefix}] ERROR FCM token ${index + 1}:`);
+        console.error('Código:', response.error?.code);
+        console.error('Mensaje:', response.error?.message);
+      }
+    });
+
     const dead = batch.filter((_, index) => {
       const response = r.responses[index];
 
