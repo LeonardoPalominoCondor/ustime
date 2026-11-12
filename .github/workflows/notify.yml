@@ -47,9 +47,7 @@ jobs:
           cache: npm
 
       - name: Instalar dependencias
-        run: |
-          npm ci --omit=dev --ignore-scripts
-          npm install --no-save --ignore-scripts firebase-admin@14.5.1
+        run: npm ci --omit=dev --ignore-scripts
 
       - name: Validar destino y modo
         env:
@@ -90,7 +88,7 @@ jobs:
 
       - name: Ejecutar notificaciones
         env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COUPLECINEMA_61657 }}
           NOW: ${{ github.event.inputs.now || '' }}
         run: |
           FLAGS=()
