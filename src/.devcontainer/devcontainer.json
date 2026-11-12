@@ -1,0 +1,9 @@
+{
+  "name": "UsTime",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "features": { "ghcr.io/devcontainers/features/java:1": { "version": "17" } },
+  "postCreateCommand": "npm install",
+  "forwardPorts": [5173, 4000, 8080, 9099],
+  "portsAttributes": { "5173": { "label": "App (pruebas)", "onAutoForward": "openBrowser", "visibility": "public" }, "4000": { "label": "Emulador UI" } },
+  "customizations": { "vscode": { "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "GitHub.vscode-pull-request-github"] } }
+}

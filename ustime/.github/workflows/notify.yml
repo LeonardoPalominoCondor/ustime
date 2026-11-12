@@ -1,0 +1,31 @@
+name: Notificaciones push
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # cada 30 min. Repo PÚBLICO: puedes usar */10. Repo PRIVADO: 30 min ≈ 1440 min/mes (el plan gratis da 2000)
+  workflow_dispatch:
+    inputs:
+      target: { description: 'prod, test o both', default: 'both' }
+      mode: { description: 'normal | dry (solo simular) | test-push (mandar una prueba)', default: 'normal' }
+      now: { description: 'Hora simulada ISO (opcional, ej. 2026-11-10T19:00:00Z)', default: '' }
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci --omit=dev --ignore-scripts && npm i --no-save firebase-admin@^12.7.0
+      - name: Enviar (producción y/o pruebas en un solo trabajo)
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TARGET: ${{ github.event.inputs.target || 'both' }}
+          MODE: ${{ github.event.inputs.mode || 'normal' }}
+          NOW: ${{ github.event.inputs.now || '' }}
+        run: |
+          FLAGS=""
+          [ "$MODE" = "dry" ] && FLAGS="--dry"
+          [ "$MODE" = "test-push" ] && FLAGS="--test-push"
+          [ -n "$NOW" ] && FLAGS="$FLAGS --now $NOW"
+          if [ "$TARGET" = "both" ] || [ "$TARGET" = "prod" ]; then node scripts/notify.mjs --prefix "" $FLAGS; fi
+          if [ "$TARGET" = "both" ] || [ "$TARGET" = "test" ]; then node scripts/notify.mjs --prefix test_ $FLAGS; fi

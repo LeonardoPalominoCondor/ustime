@@ -1,0 +1,4 @@
+{ "couples": [ { "couple": { "id": "ABC123", "members": ["A", "B"], "notified": {}, "game": { "coins": 50, "pets": [], "eggs": [{ "id": "e1", "rarity": "comun", "hatchAt": 1000, "name": "Luna", "from": "inicial" }], "days": {}, "owned": [], "inv": {}, "claims": { "streakAt": null, "hito": 0 }, "care": { "date": "", "count": 0 } } },
+  "events": [{ "id": "ev1", "title": "Cena", "categoryId": "cita", "date": "2026-11-10", "time": "20:00", "reminder": 60, "status": "planned", "createdBy": "A" }],
+  "jar": [{ "id": "j1", "from": "A", "to": "B", "createdAt": 1789000000000, "readAt": null }], "games": [],
+  "users": { "A": { "username": "Ana", "tz": "America/Lima", "tokens": ["t1"] }, "B": { "username": "Leo", "tz": "America/Lima", "tokens": ["t2"], "prefs": { "jar": false } } } } ] }

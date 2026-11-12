@@ -1,0 +1,4 @@
+{
+  "projects": { "default": "TU-PROYECTO-ID" },
+  "targets": { "TU-PROYECTO-ID": { "hosting": { "prod": ["TU-PROYECTO-ID"], "test": ["TU-PROYECTO-ID-test"] } } }
+}

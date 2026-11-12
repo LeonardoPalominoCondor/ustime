@@ -1,6 +1,6 @@
 {
-  "name": "Cine en pareja",
-  "short_name": "Cine2",
+  "name": "Us Time",
+  "short_name": "UsTime",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#17121F",
