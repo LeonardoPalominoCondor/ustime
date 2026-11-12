@@ -8,10 +8,12 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "test": "vitest run",
-    "build:test": "vite build --mode test",
+    "build:test": "vite build --mode test --outDir dist-test",
     "dev:test": "vite --host --mode test",
     "test:watch": "vitest",
-    "emulators": "firebase emulators:start --only \"auth,firestore\" --project demo-ustime"
+    "emulators": "npx firebase-tools emulators:start --only auth,firestore --project demo-ustime",
+    "notify:dry": "node scripts/notify.mjs --prefix test_ --dry",
+    "notify:fixture": "node scripts/notify.mjs --fixture tests/fixture.json"
   },
   "dependencies": {
     "firebase": "^10.14.1",
@@ -23,6 +25,7 @@
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
     "@vitejs/plugin-react": "^4.3.1",
+    "firebase-admin": "^14.5.1",
     "jsdom": "^25.0.1",
     "vite": "^5.4.0",
     "vitest": "^2.1.9"
