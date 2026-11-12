@@ -27,10 +27,23 @@ export function planNotifications({ now, couple, events = [], jar = [], games = 
   const tzOf = (u) => users[u]?.tz || DEFAULT_TZ, nameOf = (u) => users[u]?.username || 'Tu pareja'
   const quiet = (u) => { const h = localParts(now, tzOf(u)).hour; return h >= 23 || h < 7 }
   const push = (kind, key, uids, title, body, { ignoreQuiet = false } = {}) => {
-    if (notified[key]) return
-    const to = uids.filter((u) => users[u]?.tokens?.length && (users[u].prefs?.[kind] ?? DEFAULT_PREFS[kind]) && (ignoreQuiet || !quiet(u)))
-    if (to.length) out.push({ key, kind, uids: to, title, body, url: '/', tag: kind })
+  const sent = notified[key]
+
+  // Compatibilidad: los registros antiguos (números o true)
+  // indican que el aviso ya fue procesado.
+  if (sent && typeof sent !== 'object') return
+
+  const to = uids.filter((u) =>
+    !sent?.[u] &&
+    users[u]?.tokens?.length &&
+    (users[u].prefs?.[kind] ?? DEFAULT_PREFS[kind]) &&
+    (ignoreQuiet || !quiet(u))
+  )
+
+  if (to.length) {
+    out.push({ key, kind, uids: to, title, body, url: '/', tag: kind })
   }
+}
   const lp = localParts(now, tzOf(members[0]))
   // 1 · Planes cercanos
   const from = localParts(now - 864e5, tzOf(members[0])).date, to = localParts(now + 8 * 864e5, tzOf(members[0])).date

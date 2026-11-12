@@ -151,6 +151,8 @@ const msg = getMessaging(app);
 
 async function send(uid, tokens, n) {
 
+  let successful = 0
+
   if (!tokens?.length) {
     log(`  → ${uid}: sin dispositivos registrados`);
     return;
@@ -164,8 +166,8 @@ async function send(uid, tokens, n) {
     const batch = tokens.slice(i, i + 500);
 
     if (dry) {
-      log('  (simulado)', uid, n.title);
-      continue;
+      log('  (simulado)', uid, n.title)
+      continue
     }
 
     const r = await msg.sendEachForMulticast({
@@ -188,6 +190,8 @@ async function send(uid, tokens, n) {
 
     console.log(`[notify:${prefix}] Resultado FCM: ${r.successCount} exitosos, ${r.failureCount} fallidos`);
 
+    successful += r.successCount
+
     r.responses.forEach((response, index) => {
       if (!response.success) {
         console.error(`[notify:${prefix}] ERROR FCM token ${index + 1}:`);
@@ -200,7 +204,7 @@ async function send(uid, tokens, n) {
       const response = r.responses[index];
 
       return !response.success &&
-        /registration-token-not-registered|invalid-argument|invalid-registration/
+        /registration-token-not-registered|invalid-registration-token/
           .test(response.error?.code || '');
     });
 
@@ -217,6 +221,7 @@ async function send(uid, tokens, n) {
       `  → ${uid}: ${r.successCount} ok, ${r.failureCount} fallos`
     );
   }
+  return successful > 0
 }
 
 // --------------------------------------------------
@@ -334,38 +339,52 @@ for (const cd of couplesSnapshot.docs) {
 
   const updates = [];
 
-  // Enviar notificaciones.
+// Enviar y registrar únicamente los destinatarios exitosos.
 
-  for (const n of plan) {
+for (const n of plan) {
+  let delivered = 0
 
-    for (const uid of n.uids || []) {
+  for (const uid of n.uids || []) {
+    const user = users[uid]
 
-      const user = users[uid];
-
-      if (!user) {
-        log(`  → Usuario ${uid} no encontrado`);
-        continue;
-      }
-
-      await send(uid, user.tokens, n);
+    if (!user) {
+      log(`  → Usuario ${uid} no encontrado`)
+      continue
     }
 
-    updates.push(
-      new FieldPath('notified', n.key),
-      now
-    );
+    const ok = await send(uid, user.tokens, n)
 
-    total++;
+    if (ok) {
+      updates.push(
+        new FieldPath('notified', n.key, uid),
+        now
+      )
+
+      delivered++
+    } else {
+      log(`  → ${uid}: pendiente de reintento`)
+    }
   }
+
+  if (delivered > 0) total++
+}
 
   // Limpiar registros antiguos.
 
   const old = Object.entries(couple.notified || {})
-    .filter(([, t]) => now - t > 30 * 864e5)
-    .flatMap(([k]) => [
-      new FieldPath('notified', k),
-      FieldValue.delete()
-    ]);
+  .filter(([, value]) => {
+    const timestamps = value && typeof value === 'object'
+      ? Object.values(value).map(Number)
+      : [Number(value)]
+
+    const latest = Math.max(0, ...timestamps)
+
+    return latest > 0 && now - latest > 30 * 864e5
+  })
+  .flatMap(([key]) => [
+    new FieldPath('notified', key),
+    FieldValue.delete()
+  ])
 
   // No actualizar Firestore en modo dry.
 

@@ -27,7 +27,7 @@ on:
         required: true
 
       now:
-        description: 'Hora simulada ISO (opcional)'
+        description: 'Hora simulada ISO (solo test + dry)'
         type: string
         default: ''
 
@@ -38,12 +38,12 @@ jobs:
 
     steps:
       - name: Descargar repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Instalar dependencias
@@ -53,6 +53,7 @@ jobs:
         env:
           INPUT_TARGET: ${{ github.event.inputs.target || 'test' }}
           INPUT_MODE: ${{ github.event.inputs.mode || 'dry' }}
+          INPUT_NOW: ${{ github.event.inputs.now || '' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             TARGET="prod"
@@ -83,13 +84,18 @@ jobs:
             exit 1
           fi
 
+          if [ -n "$INPUT_NOW" ] && { [ "$TARGET" != "test" ] || [ "$MODE" != "dry" ]; }; then
+            echo "::error::La hora simulada solo se permite en test + dry."
+            exit 1
+          fi
+
           echo "TARGET=$TARGET" >> "$GITHUB_ENV"
           echo "MODE=$MODE" >> "$GITHUB_ENV"
+          echo "NOW=$INPUT_NOW" >> "$GITHUB_ENV"
 
       - name: Ejecutar notificaciones
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COUPLECINEMA_61657 }}
-          NOW: ${{ github.event.inputs.now || '' }}
         run: |
           FLAGS=()
 
