@@ -1,31 +1,120 @@
+
 name: Notificaciones push
+
 on:
   schedule:
-    - cron: '*/30 * * * *'   # cada 30 min. Repo PÚBLICO: puedes usar */10. Repo PRIVADO: 30 min ≈ 1440 min/mes (el plan gratis da 2000)
+    - cron: '*/30 * * * *'
+
   workflow_dispatch:
     inputs:
-      target: { description: 'prod, test o both', default: 'both' }
-      mode: { description: 'normal | dry (solo simular) | test-push (mandar una prueba)', default: 'normal' }
-      now: { description: 'Hora simulada ISO (opcional, ej. 2026-11-10T19:00:00Z)', default: '' }
+      target:
+        description: 'Entorno de destino'
+        type: choice
+        options:
+          - test
+          - prod
+        default: test
+        required: true
+
+      mode:
+        description: 'Modo de ejecución'
+        type: choice
+        options:
+          - dry
+          - test-push
+          - normal
+        default: dry
+        required: true
+
+      now:
+        description: 'Hora simulada ISO (opcional)'
+        type: string
+        default: ''
+
 jobs:
   notify:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
-      - run: npm ci --omit=dev --ignore-scripts && npm i --no-save firebase-admin@^12.7.0
-      - name: Enviar (producción y/o pruebas en un solo trabajo)
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: |
+          npm ci --omit=dev --ignore-scripts
+          npm install --no-save --ignore-scripts firebase-admin@14.5.1
+
+      - name: Validar destino y modo
+        env:
+          INPUT_TARGET: ${{ github.event.inputs.target || 'test' }}
+          INPUT_MODE: ${{ github.event.inputs.mode || 'dry' }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            TARGET="prod"
+            MODE="normal"
+          else
+            TARGET="$INPUT_TARGET"
+            MODE="$INPUT_MODE"
+          fi
+
+          case "$TARGET" in
+            test|prod) ;;
+            *)
+              echo "::error::Destino no permitido: $TARGET"
+              exit 1
+              ;;
+          esac
+
+          case "$MODE" in
+            normal|dry|test-push) ;;
+            *)
+              echo "::error::Modo no permitido: $MODE"
+              exit 1
+              ;;
+          esac
+
+          if [ "$MODE" = "test-push" ] && [ "$TARGET" != "test" ]; then
+            echo "::error::test-push solamente puede ejecutarse en test."
+            exit 1
+          fi
+
+          echo "TARGET=$TARGET" >> "$GITHUB_ENV"
+          echo "MODE=$MODE" >> "$GITHUB_ENV"
+
+      - name: Ejecutar notificaciones
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          TARGET: ${{ github.event.inputs.target || 'both' }}
-          MODE: ${{ github.event.inputs.mode || 'normal' }}
           NOW: ${{ github.event.inputs.now || '' }}
         run: |
-          FLAGS=""
-          [ "$MODE" = "dry" ] && FLAGS="--dry"
-          [ "$MODE" = "test-push" ] && FLAGS="--test-push"
-          [ -n "$NOW" ] && FLAGS="$FLAGS --now $NOW"
-          if [ "$TARGET" = "both" ] || [ "$TARGET" = "prod" ]; then node scripts/notify.mjs --prefix "" $FLAGS; fi
-          if [ "$TARGET" = "both" ] || [ "$TARGET" = "test" ]; then node scripts/notify.mjs --prefix test_ $FLAGS; fi
+          FLAGS=()
+
+          if [ "$MODE" = "dry" ]; then
+            FLAGS+=(--dry)
+          fi
+
+          if [ "$MODE" = "test-push" ]; then
+            FLAGS+=(--test-push)
+          fi
+
+          if [ -n "$NOW" ]; then
+            FLAGS+=(--now "$NOW")
+          fi
+
+          if [ "$TARGET" = "test" ]; then
+            PREFIX="test_"
+          else
+            PREFIX=""
+          fi
+
+          echo "Entorno: $TARGET"
+          echo "Modo: $MODE"
+          echo "Prefijo: $PREFIX"
+
+          node scripts/notify.mjs --prefix "$PREFIX" "${FLAGS[@]}"
