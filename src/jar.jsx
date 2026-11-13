@@ -1,6 +1,7 @@
 import React, { useContext, useMemo, useState } from 'react'
 import { Ctx } from './ctx.js'
-import { addJarNote, markJarRead, removeJarNote } from './db'
+import { markJarRead, removeJarNote } from './db'
+import { sendJarNote } from './worker'
 import { Who } from './avatar.jsx'
 import { Seg } from './ui.jsx'
 import { useBackLayer } from './nav.js'
@@ -30,16 +31,16 @@ export function JarSvg({ notes, mine, onOpen, seed }) {
   const hidden = Math.max(0, notes.length - JAR_MAX)
   return (
     <svg viewBox="0 0 300 400" className="jarsvg" role="img" aria-label={`Frasco de vidrio con ${notes.length} notas`}>
-      <defs><linearGradient id="glass" x1="0" x2="1"><stop offset="0" stopColor="#fff" stopOpacity=".28" /><stop offset=".3" stopColor="#cfe9ff" stopOpacity=".1" /><stop offset=".8" stopColor="#cfe9ff" stopOpacity=".08" /><stop offset="1" stopColor="#fff" stopOpacity=".25" /></linearGradient>
+      <defs><clipPath id="jarclip"><path d="M92 60 V86 C92 104 48 112 48 154 V348 C48 366 60 376 80 376 H220 C240 376 252 366 252 348 V154 C252 112 208 104 208 86 V60 Z" /></clipPath><linearGradient id="glass" x1="0" x2="1"><stop offset="0" stopColor="#fff" stopOpacity=".28" /><stop offset=".3" stopColor="#cfe9ff" stopOpacity=".1" /><stop offset=".8" stopColor="#cfe9ff" stopOpacity=".08" /><stop offset="1" stopColor="#fff" stopOpacity=".25" /></linearGradient>
         <linearGradient id="lid" x1="0" x2="1"><stop offset="0" stopColor="#d9a441" /><stop offset=".5" stopColor="#ffe29a" /><stop offset="1" stopColor="#b8862c" /></linearGradient></defs>
       <ellipse cx="150" cy="388" rx="100" ry="9" fill="rgba(0,0,0,.28)" />
       <path d="M88 56 V84 C88 102 40 110 40 152 V350 C40 372 56 384 78 384 H222 C244 384 260 372 260 350 V152 C260 110 212 102 212 84 V56 Z" fill="url(#glass)" stroke="rgba(255,255,255,.6)" strokeWidth="3" />
-      <g>{lay.map((p) => <Scroll key={p.id} n={byId[p.id]} pos={p} onOpen={onOpen} mine={mine} fresh={Date.now() - byId[p.id].createdAt < 6000} />)}</g>
+      <g clipPath="url(#jarclip)">{lay.map((p) => <Scroll key={p.id} n={byId[p.id]} pos={p} onOpen={onOpen} mine={mine} fresh={Date.now() - byId[p.id].createdAt < 6000} />)}</g>
       <path d="M52 160 V340" stroke="#fff" strokeOpacity=".35" strokeWidth="7" strokeLinecap="round" /><path d="M64 150 q-4 4 -4 12" stroke="#fff" strokeOpacity=".5" strokeWidth="3" fill="none" strokeLinecap="round" />
       <rect x="92" y="14" width="116" height="44" rx="12" fill="url(#lid)" stroke="#8a6420" strokeWidth="2" />{[108, 124, 140, 156, 172, 188].map((x) => <path key={x} d={`M${x} 20 V52`} stroke="#8a6420" strokeOpacity=".35" strokeWidth="2" />)}
       <rect x="72" y="116" width="156" height="50" rx="8" fill="#fff8e6" fillOpacity=".94" stroke="#e0c98c" strokeWidth="1.5" transform="rotate(-2 150 141)" />
       <text x="150" y="137" textAnchor="middle" fontSize="12.5" fontWeight="800" fill="#7a4a2a" transform="rotate(-2 150 141)">LEER SOLO CUANDO</text><text x="150" y="155" textAnchor="middle" fontSize="12.5" fontWeight="800" fill="#7a4a2a" transform="rotate(-2 150 141)">SEA NECESARIO 💌</text>
-      {hidden > 0 && <text x="150" y="372" textAnchor="middle" fontSize="12" fill="#fff" opacity=".8">+{hidden} más abajo</text>}
+      {hidden > 0 && <text x="150" y="372" textAnchor="middle" fontSize="12" fill="#fff" opacity=".8">+{hidden} notas más en el fondo</text>}
     </svg>
   )
 }
@@ -102,7 +103,17 @@ export function JarScreen() {
       <div className="two"><button className="btn" onClick={() => setCompose(true)}>💌 Escribir nota</button>{view === 'mine' ? <button className="btn ghost" disabled={!mineJar.length} onClick={pick}>🎲 Sacar una</button> : <button className="btn ghost" onClick={doShake}>🫨 Agitar</button>}</div>
       {view === 'mine' && !!mineJar.length && <button className="link" onClick={doShake}>Agitar el frasco</button>}
       {open && <Reader n={open} mine={open.to === user.uid} onClose={() => setOpen(null)} onDelete={() => { removeJarNote(couple.id, open.id); setOpen(null) }} />}
-      {compose && <Composer partnerName={partner} onClose={() => setCompose(false)} onSend={async (n) => { await addJarNote(couple.id, { ...n, from: user.uid, to: partnerUid }); setView('theirs'); setSeed((s) => s + 1) }} />}
+      {compose && <Composer partnerName={partner} onClose={() => setCompose(false)} 
+      onSend={async (n) => {
+  const result = await sendJarNote(couple.id, n)
+
+  if (result.notificationError) {
+    console.warn(result.notificationError)
+  }
+
+  setView('theirs')
+  setSeed((s) => s + 1)
+}} />}
     </>
   )
 }

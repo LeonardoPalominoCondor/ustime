@@ -1,0 +1,53 @@
+
+{
+  "couples": [
+    {
+      "couple": {
+        "members": ["usuario1", "usuario2"],
+        "notified": {
+            "pet-clean:mascota-prueba:2026-11-12:2": true
+        },
+        "game": {
+          "v": 3,
+          "days": {},
+          "eggs": [],
+          "activeId": "mascota-prueba",
+          "pets": [
+            {
+              "id": "mascota-prueba",
+              "type": "gato",
+              "name": "Michi",
+              "xp": 0,
+              "gradAt": null,
+              "sleeping": null,
+              "stage": "bebe",
+              "needs": {
+                "hunger": { "v": 90, "at": 1794500000000 },
+                "hygiene": { "v": 10, "at": 1794500000000 },
+                "energy": { "v": 90, "at": 1794500000000 },
+                "fun": { "v": 90, "at": 1794500000000 }
+              }
+            }
+          ]
+        }
+      },
+      "events": [],
+      "jar": [],
+      "games": [],
+      "users": {
+        "usuario1": {
+          "username": "Usuario 1",
+          "tz": "America/Lima",
+          "prefs": { "pet": true },
+          "tokens": ["token-de-prueba"]
+        },
+        "usuario2": {
+          "username": "Usuario 2",
+          "tz": "America/Lima",
+          "prefs": { "pet": true },
+          "tokens": ["token-de-prueba"]
+        }
+      }
+    }
+  ]
+}

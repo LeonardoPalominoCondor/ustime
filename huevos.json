@@ -1,0 +1,59 @@
+
+{
+  "couples": [
+    {
+      "couple": {
+        "members": ["usuario1", "usuario2"],
+        "notified": {
+             "egg-new:huevo-nuevo-prueba": {
+                "usuario1": true,
+                "usuario2": true
+            },
+            "egg-ready:huevo-listo-prueba": {
+                "usuario1": true,
+                "usuario2": true
+            }
+        },
+        "game": {
+          "v": 3,
+          "days": {},
+          "eggs": [
+            {
+              "id": "huevo-nuevo-prueba",
+              "rarity": "comun",
+              "hatchAt": null,
+              "name": "",
+              "from": "streak"
+            },
+            {
+              "id": "huevo-listo-prueba",
+              "rarity": "raro",
+              "hatchAt": 1794500000000,
+              "name": "Lunita",
+              "from": "hito"
+            }
+          ],
+          "pets": [],
+          "activeId": null
+        }
+      },
+      "events": [],
+      "jar": [],
+      "games": [],
+      "users": {
+        "usuario1": {
+          "username": "Usuario 1",
+          "tz": "America/Lima",
+          "prefs": { "eggs": true },
+          "tokens": ["token-de-prueba"]
+        },
+        "usuario2": {
+          "username": "Usuario 2",
+          "tz": "America/Lima",
+          "prefs": { "eggs": true },
+          "tokens": ["token-de-prueba"]
+        }
+      }
+    }
+  ]
+}

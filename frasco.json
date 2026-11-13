@@ -1,0 +1,42 @@
+
+{
+  "couples": [
+    {
+      "couple": {
+        "members": ["usuario1", "usuario2"],
+        "notified": {
+             "jar:mensaje-prueba": true
+        },
+        "game": null
+      },
+      "events": [],
+      "jar": [
+        {
+          "id": "mensaje-prueba",
+          "from": "usuario1",
+          "to": "usuario2",
+          "createdAt": 1794518506489,
+          "readAt": null,
+          "text": "Mensaje de prueba",
+          "color": "#ffd6e0",
+          "when": ""
+        }
+      ],
+      "games": [],
+      "users": {
+        "usuario1": {
+          "username": "Usuario 1",
+          "tz": "America/Lima",
+          "prefs": { "jar": true },
+          "tokens": ["token-de-prueba"]
+        },
+        "usuario2": {
+          "username": "Usuario 2",
+          "tz": "America/Lima",
+          "prefs": { "jar": true },
+          "tokens": ["token-de-prueba"]
+        }
+      }
+    }
+  ]
+}

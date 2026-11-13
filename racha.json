@@ -1,0 +1,40 @@
+
+{
+  "couples": [
+    {
+      "couple": {
+        "members": ["usuario1", "usuario2"],
+        "notified": {
+            "streak:2026-11-12": true
+        },
+        "game": {
+          "v": 3,
+          "days": {
+            "2026-11-10": true,
+            "2026-11-11": true
+          },
+          "eggs": [],
+          "pets": [],
+          "activeId": null
+        }
+      },
+      "events": [],
+      "jar": [],
+      "games": [],
+      "users": {
+        "usuario1": {
+          "username": "Usuario 1",
+          "tz": "America/Lima",
+          "prefs": { "streak": true },
+          "tokens": ["token-de-prueba"]
+        },
+        "usuario2": {
+          "username": "Usuario 2",
+          "tz": "America/Lima",
+          "prefs": { "streak": true },
+          "tokens": ["token-de-prueba"]
+        }
+      }
+    }
+  ]
+}

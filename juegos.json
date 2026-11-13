@@ -1,0 +1,42 @@
+
+{
+  "couples": [
+    {
+      "couple": {
+        "members": ["usuario1", "usuario2"],
+        "notified": {},
+        "game": null
+      },
+      "events": [],
+      "jar": [],
+      "games": [
+        {
+          "id": "partida-prueba",
+          "createdAt": 1794518702161,
+          "createdBy": "usuario1",
+          "players": ["usuario1", "usuario2"],
+          "rev": 0,
+          "status": "playing",
+          "turn": "usuario1",
+          "type": "c4",
+          "updatedAt": 1794599900000,
+          "winner": null
+        }
+      ],
+      "users": {
+        "usuario1": {
+          "username": "Usuario 1",
+          "tz": "America/Lima",
+          "prefs": { "games": true },
+          "tokens": ["token-de-prueba"]
+        },
+        "usuario2": {
+          "username": "Usuario 2",
+          "tz": "America/Lima",
+          "prefs": { "games": true },
+          "tokens": ["token-de-prueba"]
+        }
+      }
+    }
+  ]
+}
