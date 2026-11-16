@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 
-const hoisted = vi.hoisted(() => ({ gamesDocs: [], snapGames: null }))
+const hoisted = vi.hoisted(() => ({ gamesDocs: [], snapGames: null, sendJarNote: vi.fn(() => Promise.resolve({ success: true })) }))
 vi.mock('../src/firebase.js', () => ({ auth: {}, db: {}, googleProvider: {}, app: {} }))
 vi.mock('firebase/auth', () => ({ signOut: vi.fn() }))
 vi.mock('firebase/messaging', () => ({ isSupported: async () => false, getMessaging: vi.fn(), getToken: vi.fn(), deleteToken: vi.fn() }))
@@ -12,6 +12,7 @@ vi.mock('../src/tmdb.js', async (orig) => ({ ...(await orig()), nowPlaying: () =
 const dbm = vi.hoisted(() => ({ removePhoto: vi.fn(), replacePhoto: vi.fn(), addPhotos: vi.fn((c, e, d) => Promise.resolve(d.length)), patchEvent: vi.fn(() => Promise.resolve()), removeEvent: vi.fn(), claimEventXp: vi.fn(() => Promise.resolve(false)), addEvent: vi.fn(), saveProfile: vi.fn(), compressImage: vi.fn(() => Promise.resolve('data:x')), saveEntry: vi.fn(), removeEntry: vi.fn(), entryId: (m) => `${m.type}_${m.tmdbId}`, saveAnswer: vi.fn(), MAX_PHOTOS: 10,
   addJarNote: vi.fn(() => Promise.resolve()), markJarRead: vi.fn(() => Promise.resolve()), removeJarNote: vi.fn(), addNote: vi.fn(() => Promise.resolve()), patchNote: vi.fn(() => Promise.resolve()), removeNote: vi.fn(() => Promise.resolve()), addGame: vi.fn(() => Promise.resolve('new1')), removeGame: vi.fn(), playGame: vi.fn() }))
 vi.mock('../src/db.js', () => dbm)
+vi.mock('../src/worker.js', () => ({ sendJarNote: hoisted.sendJarNote }))
 
 import { Ctx } from '../src/ctx.js'
 import * as G from '../src/gamecore.js'
@@ -28,7 +29,7 @@ const T = Date.now(), me = { username: 'Ana', avatar: '🐻', avBg: 'noche', fra
 function game(xp = 0) { const g = G.normalizeGame(G.initialGame(T), T); G.incubate(g, g.eggs[0].id, 'Luna', { now: T - 30 * G.H, by: 'A' }); g.eggs[0].hatchAt = T - 1; const p = G.hatch(g, g.eggs[0].id, { now: T, by: 'A' }, 0); p.xp = xp; p.stage = G.petStage(p); return g }
 const ctxFor = (extra = {}, g = game()) => ({ user: { uid: 'A' }, profile: me, couple: { id: 'C1', members: ['A', 'B'], game: g }, members: { A: me, B: you }, entries: [], events: [], jar: [], notes: [], uids: ['A', 'B'], partnerUid: 'B', game: g, go: vi.fn(), openTitle: vi.fn(), openEvent: vi.fn(), openMail: vi.fn(), unread: 0, ...extra })
 const wrap = (ui, c) => render(<Ctx.Provider value={c}>{ui}</Ctx.Provider>)
-beforeEach(() => { cleanup(); Object.values(dbm).forEach((f) => f.mockClear?.()); localStorage.clear(); hoisted.gamesDocs = [] })
+beforeEach(() => { cleanup(); Object.values(dbm).forEach((f) => f.mockClear?.()); localStorage.clear(); hoisted.gamesDocs = []; hoisted.sendJarNote.mockClear() })
 
 describe('renombrar mascota', () => {
   it('el lápiz abre el cuadro, guarda con transacción y registra el cambio', async () => {
@@ -44,7 +45,7 @@ describe('cuarto: cepillar antes de dormir', () => {
   it('si no se cepillaron, al dormir ofrece cepillar primero', () => {
     wrap(<PetScreen />, ctxFor()); fireEvent.click(screen.getByText('Cuarto').closest('button'))
     expect(screen.getByText(/Antes de dormir/)).toBeTruthy(); fireEvent.click(screen.getByText(/🌙 Dormir/)); expect(screen.getByText(/Cepillamos antes de dormir/)).toBeTruthy(); expect(screen.getByText('Dormir sin cepillar')).toBeTruthy()
-    fireEvent.click(screen.getByText('🪥 Cepillar', { selector: '.hint button' })); expect(screen.getByText(/Cepilla los dientes de/)).toBeTruthy()
+    fireEvent.click(screen.getByText('🪥 Cepillar', { selector: '.hint button' })); expect(screen.getByText(/Cepilla a/)).toBeTruthy()
   })
 })
 
@@ -68,7 +69,7 @@ describe('escenas manuales', () => {
   it('cepillado: se limpian los dientes al restregar y recién entonces termina', async () => {
     stubGeometry(); const onDone = vi.fn(); const pet = game().pets[0]; const { container } = render(<BrushScene pet={pet} onDone={onDone} onCancel={vi.fn()} />)
     const svg = container.querySelector('svg.brushsvg'); act(() => ptr(svg, 'pointerdown', 70, 120)); expect(onDone).not.toHaveBeenCalled()
-    for (let pass = 0; pass < 14; pass++) for (const y of [122, 165]) for (let x = 60; x < 240; x += 9) act(() => ptr(svg, 'pointermove', x + (pass % 2) * 3, y))
+    for (let pass = 0; pass < 14; pass++) for (const y of [180, 210]) for (let x = 80; x < 230; x += 9) act(() => ptr(svg, 'pointermove', x + (pass % 2) * 3, y))
     expect(screen.getByText(/Dientes brillantes/)).toBeTruthy(); await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1), { timeout: 3000 })
   })
 })
@@ -102,7 +103,7 @@ describe('frasco de mensajes', () => {
   it('escribir una nota la envía a la pareja con el color elegido', async () => {
     wrap(<JarScreen />, ctxFor({ jar })); fireEvent.click(screen.getByText('💌 Escribir nota')); fireEvent.click(screen.getByLabelText('Color #cfe3ff')); fireEvent.click(screen.getByText('necesites ánimo'))
     fireEvent.change(screen.getByLabelText('Mensaje'), { target: { value: 'Eres increíble' } }); fireEvent.click(screen.getByText('💌 Meter en el frasco'))
-    await waitFor(() => expect(dbm.addJarNote).toHaveBeenCalledWith('C1', { text: 'Eres increíble', color: '#cfe3ff', when: 'necesites ánimo', from: 'A', to: 'B' }))
+    await waitFor(() => expect(hoisted.sendJarNote).toHaveBeenCalledWith('C1', { text: 'Eres incre\u00edble', color: '#cfe3ff', when: 'necesites \u00e1nimo' }))
   })
 })
 describe('los 20 juegos', () => {

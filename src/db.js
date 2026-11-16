@@ -5,6 +5,41 @@ import { normalizeEvent } from './events'
 
 export const saveProfile = (uid, data) => setDoc(doc(db, USERS, uid), data, { merge: true })
 
+export async function savePetRole(uid, coupleId, role) {
+  if (!['papi', 'mami'].includes(role)) {
+    throw new Error('Selecciona Papi o Mami.')
+  }
+
+  const coupleRef = doc(db, COUPLES, coupleId)
+  const userRef = doc(db, USERS, uid)
+
+  await runTransaction(db, async (tx) => {
+    const coupleSnap = await tx.get(coupleRef)
+
+    if (!coupleSnap.exists()) {
+      throw new Error('No encontramos su espacio.')
+    }
+
+    const members = coupleSnap.data().members || []
+
+    if (!members.includes(uid) || members.length !== 2) {
+      throw new Error('No se pudo verificar a los dos integrantes.')
+    }
+
+    const refs = members.map((id) => doc(db, USERS, id))
+    const snaps = await Promise.all(refs.map((ref) => tx.get(ref)))
+
+    const partnerIndex = members.findIndex((id) => id !== uid)
+    const partner = snaps[partnerIndex]?.data()
+
+    if (partner?.petRole === role) {
+      throw new Error('Tu pareja ya tiene asignado ese apodo.')
+    }
+
+    tx.set(userRef, { petRole: role }, { merge: true })
+  })
+}
+
 export async function createCouple(uid) {
   const id = Math.random().toString(36).slice(2, 8).toUpperCase()
   await setDoc(doc(db, COUPLES, id), { members: [uid], createdAt: serverTimestamp() })

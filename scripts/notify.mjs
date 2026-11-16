@@ -320,6 +320,7 @@ for (const cd of couplesSnapshot.docs) {
 
     users[uid] = {
       username: u.username,
+      petRole: u.petRole,
       tz: p.tz,
       prefs: p.prefs,
       tokens: p.tokens || []

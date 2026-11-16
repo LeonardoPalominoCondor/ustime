@@ -88,4 +88,98 @@ describe('notificaciones (planificador)', () => {
     const p = planNotifications({ now, couple: couple(g), users }); expect(p.some((x) => x.kind === 'pet')).toBe(true)
     expect(planNotifications({ now: at('2026-11-10T08:00:00Z') + 0, couple: couple(g), users }).some((x) => x.kind === 'pet')).toBe(false)
   })
+
+  it('avisa independientemente de las cuatro necesidades bajas', () => {
+    const g = G.normalizeGame(G.initialGame(T0), T0)
+    G.incubate(g, g.eggs[0].id, 'Luna', c())
+    const now = at('2026-11-10T17:00:00Z')
+    const pet = G.hatch(g, g.eggs[0].id, c(T0 + 25 * G.H), 0)
+    g.eggs = []
+
+    for (const need of ['hunger', 'hygiene', 'energy', 'fun']) {
+      pet.needs[need] = { v: 5, at: now }
+    }
+
+    const plan = planNotifications({ now, couple: couple(g), users })
+    const alerts = plan.filter((n) => n.key.startsWith('pet-'))
+
+    expect(alerts.map((n) => n.key)).toEqual(expect.arrayContaining([
+      `pet-hunger:${pet.id}:2026-11-10`,
+      `pet-clean:${pet.id}:2026-11-10`,
+      `pet-energy:${pet.id}:2026-11-10`,
+      `pet-fun:${pet.id}:2026-11-10`
+    ]))
+    expect(alerts).toHaveLength(4)
+  })
+
+  it('avisa cuando la mascota cumple 8 horas continuas durmiendo', () => {
+    const g = G.normalizeGame(G.initialGame(T0), T0)
+    G.incubate(g, g.eggs[0].id, 'Luna', c())
+    const now = at('2026-11-10T17:00:00Z')
+    const pet = G.hatch(g, g.eggs[0].id, c(T0 + 25 * G.H), 0)
+    g.eggs = []
+
+    pet.sleeping = { since: now - 8 * 60 * 60 * 1000 + 1, bonus: false }
+
+    let plan = planNotifications({ now, couple: couple(g), users })
+    expect(plan.some((n) => n.key.startsWith('pet-sleep-too-long:'))).toBe(false)
+
+    pet.sleeping.since = now - 8 * 60 * 60 * 1000
+
+    plan = planNotifications({ now, couple: couple(g), users })
+    expect(plan).toContainEqual(expect.objectContaining({
+      key: `pet-sleep-too-long:${pet.id}:${pet.sleeping.since}`,
+      kind: 'pet',
+      uids: ['A', 'B']
+    }))
+  })
+
+  it('notifica cada actividad al otro integrante usando Papi y Mami', () => {
+    const g = G.normalizeGame(G.initialGame(T0), T0)
+    G.incubate(g, g.eggs[0].id, 'Luna', c())
+    const now = at('2026-11-10T17:00:00Z')
+    G.hatch(g, g.eggs[0].id, c(T0 + 25 * G.H), 0)
+    g.eggs = []
+
+    g.log = [
+      { t: now - 2 * 60000, by: 'B', k: 'bath', pet: 'Luna' },
+      { t: now - 5 * 60000, by: 'A', k: 'feed', pet: 'Luna' },
+      { t: now - 10 * 60000, by: 'A', k: 'feed', pet: 'Luna' }
+    ]
+
+    const activityUsers = {
+      ...users,
+      A: { ...users.A, petRole: 'papi' },
+      B: { ...users.B, petRole: 'mami' }
+    }
+
+    const plan = planNotifications({
+      now,
+      couple: couple(g),
+      users: activityUsers
+    })
+
+    const actions = plan.filter((n) => n.key.startsWith('pet-action:'))
+
+    expect(actions).toHaveLength(3)
+
+    const papiActions = actions.filter((n) => n.title.includes('Papi'))
+    const mamiActions = actions.filter((n) => n.title.includes('Mami'))
+
+    expect(papiActions).toHaveLength(2)
+    expect(papiActions.every((n) => n.uids.length === 1 && n.uids[0] === 'B')).toBe(true)
+
+    expect(mamiActions).toHaveLength(1)
+    expect(mamiActions[0].uids).toEqual(['A'])
+
+    const notified = Object.fromEntries(
+      actions.map((n) => [n.key, { [n.uids[0]]: now }])
+    )
+
+    expect(planNotifications({
+      now,
+      couple: couple(g, notified),
+      users: activityUsers
+    }).filter((n) => n.key.startsWith('pet-action:'))).toHaveLength(0)
+  })
 })

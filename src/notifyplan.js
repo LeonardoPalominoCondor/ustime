@@ -4,7 +4,7 @@ import { normalizeGame, needsNow, toMs } from './gamecore.js'
 import { ENGINES } from './games/engines.js'
 
 export const DEFAULT_PREFS = { events: true, eggs: true, streak: true, pet: true, jar: true, games: true }
-export const PREF_LABELS = { events: '📅 Planes y recordatorios', eggs: '🥚 Huevos (nuevo o listo)', streak: '🔥 Racha en peligro', pet: '🐾 Mascota con hambre o sucia', jar: '💌 Mensajes del frasco', games: '🎮 Te toca jugar' }
+export const PREF_LABELS = { events: '📅 Planes y recordatorios', eggs: '🥚 Huevos (nuevo o listo)', streak: '🔥 Racha en peligro', pet: '🐾 Cuidados y actividades de la mascota', jar: '💌 Mensajes del frasco', games: '🎮 Te toca jugar' }
 export const DEFAULT_TZ = 'America/Lima'
 
 export function tzOffsetMs(epoch, tz) {
@@ -60,10 +60,104 @@ export function planNotifications({ now, couple, events = [], jar = [], games = 
       if (at != null && at <= now) push('eggs', `egg-ready:${e.id}`, members, '🐣 ¡Tu huevo está listo!', `${e.name || 'Tu huevo'} ya puede eclosionar`)
       if (at == null && ['streak', 'hito'].includes(e.from)) push('eggs', `egg-new:${e.id}`, members, '🥚 ¡Ganaron un huevo nuevo!', 'Pónganle nombre e incúbenlo') }
     if (!g.days[lp.date] && lp.hour >= 20 && lp.hour < 23) { const n = streakTz(g.days, lp.date); if (n >= 2) push('streak', `streak:${lp.date}`, members, '🔥 ¡Su racha está por perderse!', `Llevan ${n} días seguidos. Hagan algo juntos hoy para mantenerla`) }
-    const pet = g.pets.find((p) => p.id === g.activeId && !p.gradAt)
-    if (pet && !pet.sleeping && lp.hour >= 8 && lp.hour < 22) { const n = needsNow(pet, now), slot = `${lp.date}:${Math.floor(lp.hour / 6)}`
-      if (n.hunger < 20) push('pet', `pet-hunger:${pet.id}:${slot}`, members, `🍽️ ${pet.name} tiene hambre`, '¡Denle de comer!')
-      else if (n.hygiene < 15) push('pet', `pet-clean:${pet.id}:${slot}`, members, `🛁 ${pet.name} necesita un baño`, 'Está muy sucio…') }
+    for (const pet of g.pets.filter((p) => !p.gradAt)) {
+      // Alertas de necesidades mientras la mascota está despierta.
+      if (!pet.sleeping && lp.hour >= 8 && lp.hour < 22) {
+        const n = needsNow(pet, now)
+
+        if (n.hunger < 20) {
+          push('pet', `pet-hunger:${pet.id}:${lp.date}`, members,
+            `🍽️ ${pet.name} tiene hambre`, '¡Denle de comer!')
+        }
+
+        if (n.hygiene < 15) {
+          push('pet', `pet-clean:${pet.id}:${lp.date}`, members,
+            `🛁 ${pet.name} necesita un baño`, '¡Necesita cuidados de higiene!')
+        }
+
+        if (n.energy < 20) {
+          push('pet', `pet-energy:${pet.id}:${lp.date}`, members,
+            `😴 ${pet.name} está cansada`, '¡Necesita descansar!')
+        }
+
+        if (n.fun < 20) {
+          push('pet', `pet-fun:${pet.id}:${lp.date}`, members,
+            `🎮 ${pet.name} está aburrida`, '¡Jueguen un rato con ella!')
+        }
+      }
+
+      // Aviso cuando lleva más de 8 horas durmiendo.
+      if (pet.sleeping) {
+        const sleepSince = toMs(pet.sleeping.since)
+
+        if (sleepSince != null && now - sleepSince >= 8 * 60 * 60 * 1000) {
+          push('pet', `pet-sleep-too-long:${pet.id}:${sleepSince}`, members,
+            `☀️ ¡${pet.name} lleva mucho tiempo durmiendo!`,
+            'Despiértenla para continuar cuidándola.')
+        }
+      }
+    }
+
+        // 2.1 · Avisos de actividades entre Papi y Mami.
+    const activityMessages = {
+      feed: {
+        title: (role, pet) => `🍽️ ${role} alimentó a ${pet}`,
+        body: 'Le dio de comer.'
+      },
+      bath: {
+        title: (role, pet) => `🛁 ${role} bañó a ${pet}`,
+        body: 'Le dio un baño.'
+      },
+      brush: {
+        title: (role, pet) => `🪥 ${role} cepilló a ${pet}`,
+        body: 'Le dio sus cuidados dentales.'
+      },
+      pet: {
+        title: (role, pet) => `💗 ${role} acarició a ${pet}`,
+        body: 'Le dedicó un momento de cariño.'
+      },
+      play: {
+        title: (role, pet) => `🎮 ${role} jugó con ${pet}`,
+        body: 'Compartieron un minijuego.'
+      },
+      sleep: {
+        title: (role, pet) => `🌙 ${role} acostó a ${pet}`,
+        body: 'Es hora de descansar.'
+      },
+      wake: {
+        title: (role, pet) => `☀️ ${role} despertó a ${pet}`,
+        body: 'Ya terminó su descanso.'
+      }
+    }
+
+    for (const entry of g.log || []) {
+      const message = activityMessages[entry.k]
+      const activityAt = toMs(entry.t)
+
+      if (!message || !entry.by || activityAt == null) continue
+      if (!members.includes(entry.by)) continue
+      if (now - activityAt < 0 || now - activityAt > 24 * 60 * 60 * 1000) continue
+
+      const recipient = members.find((uid) => uid !== entry.by)
+      if (!recipient) continue
+
+      const role = users[entry.by]?.petRole === 'papi'
+        ? 'Papi'
+        : users[entry.by]?.petRole === 'mami'
+          ? 'Mami'
+          : 'Tu pareja'
+
+      const petName = entry.pet || 'la mascota'
+      const key = `pet-action:${entry.by}:${entry.k}:${petName}:${activityAt}`
+
+      push(
+        'pet',
+        key,
+        [recipient],
+        message.title(role, petName),
+        message.body
+      )
+    }
   }
   // 3 · Frasco y partidas
   for (const n of jar) if (n.to && !n.readAt && now - n.createdAt < 3 * 864e5) push('jar', `jar:${n.id}`, [n.to], '💌 Nuevo mensaje en tu frasco', `${nameOf(n.from)} te dejó una nota. Léela cuando la necesites`)

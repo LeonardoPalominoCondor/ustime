@@ -285,9 +285,11 @@ export function doPet(g, petId, c) {
   const p = getPet(g, petId); settle(p, c.now, c.mul)
   p.needs.fun.v = Math.min(100, p.needs.fun.v + 5); p.lastPet = c.now
   g.stats.pets++; track(g, 'pet', c.now)
+  addLog(g, 'pet', c.by, c.now, { pet: p.name })
   const xp = useLimit(g, 'pet', 5, c.now) ? 2 : 0; if (xp) applyReward(g, { xp }, c.now, c.by)
   return { xp }
 }
+
 export function doBrush(g, petId, c) {
   const p = getPet(g, petId); if (p.sleeping) throw new Error('Está durmiendo. ¡Déjenla descansar!')
   settle(p, c.now, c.mul); p.needs.hygiene.v = Math.min(100, p.needs.hygiene.v + 10); p.brushedAt = c.now
@@ -305,7 +307,12 @@ export function renamePet(g, petId, name, c) {
 export const MIN_SLEEP_MS = 20 * 60000
 export function doSleep(g, petId, c) {
   const p = getPet(g, petId); settle(p, c.now, c.mul)
-  if (!p.sleeping) { const bonus = !!p.brushedAt && c.now - p.brushedAt < 12 * H; p.sleeping = { since: c.now, bonus }; return { sleeping: true, bonus } }
+  if (!p.sleeping) {
+    const bonus = !!p.brushedAt && c.now - p.brushedAt < 12 * H
+    p.sleeping = { since: c.now, bonus }
+    addLog(g, 'sleep', c.by, c.now, { pet: p.name })
+    return { sleeping: true, bonus }
+  }
   const slept = c.now - p.sleeping.since; p.sleeping = null
   if (slept >= MIN_SLEEP_MS) { track(g, 'sleep', c.now); addLog(g, 'wake', c.by, c.now, { pet: p.name }); const xp = useLimit(g, 'sleep', 1, c.now) ? 5 : 0; if (xp) applyReward(g, { xp }, c.now, c.by); return { sleeping: false, slept, xp } }
   return { sleeping: false, slept, xp: 0 }

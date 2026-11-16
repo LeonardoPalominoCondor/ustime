@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { logout } from './session.js'
 import { Ctx } from './ctx.js'
-import { saveProfile } from './db'
+import { saveProfile, savePetRole } from './db'
 import { EmojiPicker } from './emoji.jsx'
 import { Avatar, AV_BG, FRAMES, STICKERS, ACCENTS, isUnlocked, needText } from './avatar.jsx'
 import { computeAchievements } from './achievements.js'
@@ -45,24 +45,142 @@ export function ProfileEditor({ initial, onSave, label = 'Guardar cambios', stat
   )
 }
 
+
 export function ProfileScreen() {
-  const { user, profile, couple, uids } = useContext(Ctx)
+  const { user, profile, couple, uids, members } = useContext(Ctx)
   const stats = useUnlockStats()
+
+  const partnerUid = uids.find((u) => u !== user.uid)
+  const partnerRole = partnerUid ? members[partnerUid]?.petRole : null
+
+  const [petRole, setPetRole] = useState(profile?.petRole || '')
+  const [roleBusy, setRoleBusy] = useState(false)
+  const [roleMsg, setRoleMsg] = useState('')
+  const [roleErr, setRoleErr] = useState('')
+
+  useEffect(() => {
+    setPetRole(profile?.petRole || '')
+  }, [profile?.petRole])
+
   const [calm, setCalm] = useState(localStorage.getItem('ustime_calm') === '1')
-  const toggleCalm = () => { const v = !calm; setCalm(v); localStorage.setItem('ustime_calm', v ? '1' : '0'); document.documentElement.dataset.calm = v ? '1' : '' }
+
+  const toggleCalm = () => {
+    const v = !calm
+    setCalm(v)
+    localStorage.setItem('ustime_calm', v ? '1' : '0')
+    document.documentElement.dataset.calm = v ? '1' : ''
+  }
+
+  const saveRole = async () => {
+    if (!petRole || !couple?.id) return
+
+    setRoleBusy(true)
+    setRoleErr('')
+    setRoleMsg('')
+
+    try {
+      await savePetRole(user.uid, couple.id, petRole)
+      setRoleMsg('Apodo guardado correctamente.')
+    } catch (e) {
+      setRoleErr(e.message || 'No se pudo guardar el apodo.')
+    } finally {
+      setRoleBusy(false)
+    }
+  }
+
   return (
     <>
       <h1>Tu perfil</h1>
-      <ProfileEditor initial={profile} stats={stats} onSave={(d) => saveProfile(user.uid, d)} />
-      <div className="panel"><h3>Código de su espacio</h3><div className="code">{couple.id}</div><small className="muted">{uids.length < 2 ? 'Pásaselo a tu pareja para que se una.' : 'Ya están los dos conectados.'}</small></div>
+
+      <ProfileEditor
+        initial={profile}
+        stats={stats}
+        onSave={(d) => saveProfile(user.uid, d)}
+      />
+
+      <div className="panel">
+        <h3>🐾 Roles de la mascota</h3>
+        <p className="muted small">
+          Elijan cómo aparecerán cuando cuiden a su mascota.
+        </p>
+
+        <div className="two">
+          {['papi', 'mami'].map((role) => {
+            const occupied = partnerRole === role && petRole !== role
+
+            return (
+              <button
+                key={role}
+                type="button"
+                className={'btn ' + (petRole === role ? '' : 'ghost')}
+                disabled={occupied || roleBusy}
+                onClick={() => {
+                  setPetRole(role)
+                  setRoleMsg('')
+                  setRoleErr('')
+                }}
+              >
+                {role === 'papi' ? '👨 Papi' : '👩 Mami'}
+                {occupied ? ' (asignado)' : ''}
+              </button>
+            )
+          })}
+        </div>
+
+        {partnerUid && !partnerRole && (
+          <small className="muted">
+            Tu pareja todavía no ha elegido su apodo.
+          </small>
+        )}
+
+        {!partnerUid && (
+          <small className="muted">
+            Esperen a que se una el segundo integrante para asignar los roles.
+          </small>
+        )}
+
+        {roleErr && <p className="error" role="alert">{roleErr}</p>}
+        {roleMsg && <p className="okmsg" role="status">{roleMsg}</p>}
+
+        <button
+          className="btn big"
+          disabled={!petRole || !partnerUid || roleBusy || petRole === profile?.petRole}
+          onClick={saveRole}
+        >
+          {roleBusy ? 'Guardando…' : 'Guardar apodo'}
+        </button>
+      </div>
+
+      <div className="panel">
+        <h3>Código de su espacio</h3>
+        <div className="code">{couple.id}</div>
+        <small className="muted">
+          {uids.length < 2
+            ? 'Pásaselo a tu pareja para que se una.'
+            : 'Ya están los dos conectados.'}
+        </small>
+      </div>
+
       <Notifications uid={user.uid} />
-      <div className="panel"><h3>Preferencias</h3>
-        <label className="check"><input type="checkbox" checked={calm} onChange={toggleCalm} /> Reducir animaciones</label></div>
+
+      <div className="panel">
+        <h3>Preferencias</h3>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={calm}
+            onChange={toggleCalm}
+          />
+          Reducir animaciones
+        </label>
+      </div>
+
       <p className="muted small">Sesión: {user.email}</p>
       <button className="link" onClick={logout}>Cerrar sesión</button>
     </>
   )
 }
+
 
 function Notifications({ uid }) {
   const [state, setState] = useState({ ok: null, on: !!localStorage.getItem('ustime_push_token'), perm: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported' })
